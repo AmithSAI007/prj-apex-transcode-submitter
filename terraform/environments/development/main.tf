@@ -2,6 +2,7 @@ module "storage" {
   source = "../../modules/storage"
 }
 
+
 module "service" {
   source             = "../../modules/services"
   project_id         = var.project_id
