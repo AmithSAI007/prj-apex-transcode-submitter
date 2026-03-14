@@ -1,0 +1,1 @@
+{"severity":"INFO","ts":1773481358.394818,"caller":"api/main.go:85","msg":"Starting server","port":":8080"}
