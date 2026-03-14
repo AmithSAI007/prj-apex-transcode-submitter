@@ -29,8 +29,6 @@ type Config struct {
 	OtelServiceName string `mapstructure:"OTEL_SERVICE_NAME"`
 	// OtelExporterOtlpHeaders are the headers to include when exporting traces to an OTLP endpoint.
 	OtelExporterOtlpHeaders string `mapstructure:"OTEL_EXPORTER_OTLP_HEADERS"`
-	// TranscoderServiceUrl is the URL of the transcoder service to which upload events are sent.
-	TranscoderServiceUrl string `mapstructure:"TRANSCODER_SERVICE_URL"`
 }
 
 // LoadConfig reads configuration from a YAML file at the given path and merges
@@ -48,7 +46,6 @@ func LoadConfig(path string) (*Config, error) {
 	viper.SetDefault("GCS_BUCKET", "")
 	viper.SetDefault("OTEL_SERVICE_NAME", "prj-apex-upload-platform")
 	viper.SetDefault("OTEL_EXPORTER_OTLP_HEADERS", "x-goog-user-project=amith-testing")
-	viper.SetDefault("TRANSCODER_SERVICE_URL", "http://localhost:8081")
 
 	viper.AddConfigPath(path)
 	viper.SetConfigName("config")
