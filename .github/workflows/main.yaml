@@ -215,7 +215,7 @@ jobs:
           # container image should be image:sha
           cat <<EOF > deploy.tfvars.json
           {
-            "container_image": "${{ needs.build_and_push.outputs.image }}:${{ needs.build_and_push.outputs.short_sha }}",
+            "container_image": "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.short_sha }}",
             "service_account_name": "${{ secrets.GCP_SERVICE_ACCOUNT }}"
           }
           EOF
