@@ -188,12 +188,13 @@ jobs:
           REGISTRY="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_REPOSITORY }}"
           IMAGE="${REGISTRY}/${{ env.IMAGE_NAME }}"
           SHA_TAG="${IMAGE}:${{ github.sha }}"
-          SHORT_SHA_TAG="${IMAGE}:$(echo ${{ github.sha }} | cut -c1-7)"
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          SHORT_SHA_TAG="${IMAGE}:${SHORT_SHA}"
           LATEST_TAG="${IMAGE}:latest"
           ENV_TAG="${IMAGE}:${{ needs.determine_environment.outputs.environment }}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "tags=${SHA_TAG},${SHORT_SHA_TAG},${LATEST_TAG},${ENV_TAG}" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${SHORT_SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         id: build
@@ -209,9 +210,11 @@ jobs:
 
       - name: Create Terraform Config
         run: |
+
+          # container image should be image:sha
           cat <<EOF > deploy.tfvars.json
           {
-            "container_image": "${{ steps.build.outputs.short_sha }}",
+            "container_image": "${{ needs.build_and_push.outputs.image }}:${{ needs.build_and_push.outputs.short_sha }}",
             "service_account_name": "${{ secrets.GCP_SERVICE_ACCOUNT }}"
           }
           EOF
@@ -231,7 +234,7 @@ jobs:
       environment: ${{ needs.determine_environment.outputs.environment }}
       terraform_directory: ${{ needs.determine_environment.outputs.dir }}
       is_pull_request: ${{ github.event_name == 'pull_request' }}
-      terraform_args: "-var=container_image=${{ needs.build-and-push.outputs.short_sha }}"
+      terraform_args: "-var=container_image=${{ needs.build_and_push.outputs.image }}:${{ needs.build_and_push.outputs.short_sha }}"
     secrets:
       PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       WORKLOAD_IDENTITY: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
