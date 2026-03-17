@@ -45,56 +45,7 @@ func (h *EventHandler) HandleTranscodeTask(c *gin.Context) {
 
 	h.logger.Info("Received transcode task request")
 
-	traceID := utils.TraceIDFromContext(c.Request.Context())
-
-	if c.ContentType() != applicationJSON {
-		h.logger.With(
-			zap.String("severity", "ERROR"),
-			zap.String("traceId", traceID),
-		).Error("Invalid content type", zap.String("contentType", c.ContentType()))
-		h.respondWithServiceError(c, validation.ErrInvalidContentType, "Content-Type must be application/json")
-		return
-	}
-
-	if c.Request.ContentLength == 0 {
-		h.logger.With(
-			zap.String("severity", "ERROR"),
-			zap.String("traceId", traceID),
-		).Error("Empty request body")
-		h.respondWithServiceError(c, validation.ErrEmptyBody, "Request body cannot be empty")
-		return
-	}
-
-	if c.Request.ContentLength > maxBodySize {
-		h.logger.With(
-			zap.String("severity", "ERROR"),
-			zap.String("traceId", traceID),
-			zap.Int64("contentLength", c.Request.ContentLength),
-		).Error("Request body too large")
-		h.respondWithServiceError(c, validation.ErrPayloadTooLarge, "Request body exceeds maximum allowed size")
-		return
-	}
-
-	var req dto.TranscodeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.With(
-			zap.String("severity", "ERROR"),
-			zap.String("traceId", traceID),
-		).Error("Failed to bind request body", zap.Error(err))
-		h.respondWithServiceError(c, validation.ErrMalformedJSON, "Invalid request body")
-		return
-	}
-
-	// print all headers for debugging
-	for key, values := range c.Request.Header {
-		for _, value := range values {
-			h.logger.With(
-				zap.String("traceId", traceID),
-			).Info("Request header", zap.String("key", key), zap.String("value", value))
-		}
-	}
-
-	h.logger.Info("Transcode task request validated successfully")
+	h.logger.Info("Transcode task request validated successfully", zap.Any("headers", c.Request.Header))
 
 	c.JSON(200, dto.TranscodeResponse{
 		Message: "Transcode task received successfully",
