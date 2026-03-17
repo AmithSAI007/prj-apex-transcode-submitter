@@ -26,11 +26,6 @@ import (
 //	@Failure		500		{object}	dto.ErrorResponse
 //	@Router			/ [post]
 
-const (
-	maxBodySize     = 10 * 1024
-	applicationJSON = "application/json"
-)
-
 type EventHandler struct {
 	logger *zap.Logger
 }
@@ -51,54 +46,4 @@ func (h *EventHandler) HandleTranscodeTask(c *gin.Context) {
 		Message: "Transcode task received successfully",
 	})
 
-}
-
-func (h *EventHandler) respondWithServiceError(c *gin.Context, err error, message string) {
-	traceID := utils.TraceIDFromContext(c.Request.Context())
-	requestID := traceID
-
-	span := otrace.SpanFromContext(c.Request.Context())
-	if span != nil && span.IsRecording() {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, message)
-	}
-
-	switch {
-	case errors.Is(err, validation.ErrMalformedJSON):
-		if span != nil && span.IsRecording() {
-			span.AddEvent("validation.invalid_path", otrace.WithAttributes(
-				attribute.String("error", err.Error()),
-			))
-		}
-		c.JSON(400, dto.ErrorResponse{
-			Error: dto.ErrorPayload{Code: dto.ErrorCodeInvalidRequest, Message: message, RequestID: requestID},
-		})
-	case errors.Is(err, validation.ErrInvalidContentType):
-		if span != nil && span.IsRecording() {
-			span.AddEvent("validation.invalid_content_type", otrace.WithAttributes(
-				attribute.String("error", err.Error()),
-			))
-		}
-		c.JSON(415, dto.ErrorResponse{
-			Error: dto.ErrorPayload{Code: dto.ErrorCodeInvalidContentType, Message: message, RequestID: requestID},
-		})
-	case errors.Is(err, validation.ErrEmptyBody), errors.Is(err, validation.ErrPayloadTooLarge):
-		if span != nil && span.IsRecording() {
-			span.AddEvent("validation.request_error", otrace.WithAttributes(
-				attribute.String("error", err.Error()),
-			))
-		}
-		c.JSON(400, dto.ErrorResponse{
-			Error: dto.ErrorPayload{Code: dto.ErrorCodeEmptyBody, Message: message, RequestID: requestID},
-		})
-	default:
-		if span != nil && span.IsRecording() {
-			span.AddEvent("internal.error", otrace.WithAttributes(
-				attribute.String("error", err.Error()),
-			))
-		}
-		c.JSON(500, dto.ErrorResponse{
-			Error: dto.ErrorPayload{Code: dto.ErrorCodeInternal, Message: message, RequestID: requestID},
-		})
-	}
 }
