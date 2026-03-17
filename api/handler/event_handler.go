@@ -16,7 +16,6 @@ import (
 // HandleTranscodeTask godoc
 //
 //	@Summary		Submit transcode task
-//	@Description	接收转码任务请求
 //	@Tags			transcode
 //	@Accept			json
 //	@Produce		json
@@ -43,6 +42,8 @@ func NewEventHandler(logger *zap.Logger) *EventHandler {
 }
 
 func (h *EventHandler) HandleTranscodeTask(c *gin.Context) {
+
+	h.logger.Info("Received transcode task request")
 
 	traceID := utils.TraceIDFromContext(c.Request.Context())
 
@@ -93,6 +94,8 @@ func (h *EventHandler) HandleTranscodeTask(c *gin.Context) {
 			).Debug("Request header", zap.String("key", key), zap.String("value", value))
 		}
 	}
+
+	h.logger.Info("Transcode task request validated successfully", zap.Any("request", c.Request))
 
 	c.JSON(200, dto.TranscodeResponse{
 		Message: "Transcode task received successfully",
