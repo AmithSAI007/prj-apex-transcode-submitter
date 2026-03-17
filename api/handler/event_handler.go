@@ -89,13 +89,12 @@ func (h *EventHandler) HandleTranscodeTask(c *gin.Context) {
 	for key, values := range c.Request.Header {
 		for _, value := range values {
 			h.logger.With(
-				zap.String("severity", "DEBUG"),
 				zap.String("traceId", traceID),
-			).Debug("Request header", zap.String("key", key), zap.String("value", value))
+			).Info("Request header", zap.String("key", key), zap.String("value", value))
 		}
 	}
 
-	h.logger.Info("Transcode task request validated successfully", zap.Any("request", c.Request))
+	h.logger.Info("Transcode task request validated successfully")
 
 	c.JSON(200, dto.TranscodeResponse{
 		Message: "Transcode task received successfully",
