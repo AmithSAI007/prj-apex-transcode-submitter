@@ -1,15 +1,8 @@
 package handler
 
 import (
-	"errors"
-
 	"github.com/AmithSAI007/prj-apex-transcode-submitter/api/dto"
-	"github.com/AmithSAI007/prj-apex-transcode-submitter/pkg/utils"
-	"github.com/AmithSAI007/prj-apex-transcode-submitter/pkg/validation"
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	otrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
