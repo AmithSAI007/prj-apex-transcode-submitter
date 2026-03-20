@@ -220,6 +220,8 @@ jobs:
           MIN_FILE_SIZE_BYTES: "${{ vars.MIN_FILE_SIZE_BYTES }}"
           MAX_FILE_SIZE_BYTES: "${{ vars.MAX_FILE_SIZE_BYTES }}"
           ALLOWED_CONTENT_TYPES: "${{ vars.ALLOWED_CONTENT_TYPES }}"
+          TRANSCODE_TASK_QUEUE: "${{ vars.TRANSCODE_TASK_QUEUE }}"
+          TRANSCODER_TEMPLATE_ID: "${{ vars.TRANSCODER_TEMPLATE_ID }}"
         run: |
           jq -n \
             --arg ci "$CONTAINER_IMAGE" \
@@ -231,6 +233,8 @@ jobs:
             --arg mfsb "$MIN_FILE_SIZE_BYTES" \
             --arg mfxb "$MAX_FILE_SIZE_BYTES" \
             --arg act "$ALLOWED_CONTENT_TYPES" \
+            --arg ttq "$TRANSCODE_TASK_QUEUE" \
+            --arg ttid "$TRANSCODER_TEMPLATE_ID" \
             '{
               container_image: $ci,
               service_account_name: $sa,
@@ -240,7 +244,9 @@ jobs:
               firestore_database_id: $fd,
               min_file_size_bytes: ($mfsb | tonumber),
               max_file_size_bytes: ($mfxb | tonumber),
-              allowed_content_types: $act
+              allowed_content_types: $act,
+              transcode_task_queue: $ttq,
+              transcoder_template_id: $ttid
             }' > deploy.tfvars.json
 
       - name: Upload Config
