@@ -25,10 +25,26 @@ type Config struct {
 	FirestoreDatabaseID string `mapstructure:"FIRESTORE_DATABASE_ID"`
 	// GCSBucket is the GCS bucket where uploaded objects are stored.
 	GCSBucket string `mapstructure:"GCS_BUCKET"`
+	// OutputGCSBucket is the GCS bucket where transcoded outputs will be stored.
+	OutputGCSBucket string `mapstructure:"OUTPUT_GCS_BUCKET"`
 	// OtelServiceName is the name of the service for OpenTelemetry tracing.
 	OtelServiceName string `mapstructure:"OTEL_SERVICE_NAME"`
 	// OtelExporterOtlpHeaders are the headers to include when exporting traces to an OTLP endpoint.
 	OtelExporterOtlpHeaders string `mapstructure:"OTEL_EXPORTER_OTLP_HEADERS"`
+	// MaxFileSizeBytes is the maximum allowed file size for uploads, in bytes.
+	MaxFileSizeBytes int64 `mapstructure:"MAX_FILE_SIZE_BYTES"`
+	//MinFileSizeBytes is the minimum allowed file size for uploads, in bytes.
+	MinFileSizeBytes int64 `mapstructure:"MIN_FILE_SIZE_BYTES"`
+	// AllowedContentTypes is a comma-separated list of allowed MIME types for uploaded files.
+	AllowedContentTypes string `mapstructure:"ALLOWED_CONTENT_TYPES"`
+	// TranscodeTaskQueue is the name of the Cloud Tasks queue to which transcode tasks will be submitted.
+	TranscodeTaskQueue string `mapstructure:"TRANSCODE_TASK_QUEUE"`
+	// FirestoreCollection is the Firestore collection used to store video document state.
+	FirestoreCollection string `mapstructure:"FIRESTORE_COLLECTION"`
+	// TranscoderTemplateID is the Transcoder API job template to use for transcoding jobs.
+	TranscoderTemplateID string `mapstructure:"TRANSCODER_TEMPLATE_ID"`
+	// OtelResourceAttributes is a comma-separated list of key=value pairs to set as resource attributes on all traces.
+	OtelResourceAttributes string `mapstructure:"OTEL_RESOURCE_ATTRIBUTES"`
 }
 
 // LoadConfig reads configuration from a YAML file at the given path and merges
@@ -44,8 +60,15 @@ func LoadConfig(path string) (*Config, error) {
 	viper.SetDefault("GCP_PROJECT_ID", "amith-testing")
 	viper.SetDefault("FIRESTORE_DATABASE_ID", "apex-firestore-db")
 	viper.SetDefault("GCS_BUCKET", "")
+	viper.SetDefault("OUTPUT_GCS_BUCKET", "")
 	viper.SetDefault("OTEL_SERVICE_NAME", "prj-apex-upload-platform")
 	viper.SetDefault("OTEL_EXPORTER_OTLP_HEADERS", "x-goog-user-project=amith-testing")
+	viper.SetDefault("MAX_FILE_SIZE_BYTES", 10*1024*1024*1024) // 10 GB
+	viper.SetDefault("MIN_FILE_SIZE_BYTES", 1)                 // 1 byte
+	viper.SetDefault("ALLOWED_CONTENT_TYPES", "video/mp4,video/mkv,video/avi")
+	viper.SetDefault("TRANSCODE_TASK_QUEUE", "transcode-tasks")
+	viper.SetDefault("FIRESTORE_COLLECTION", "videos")
+	viper.SetDefault("TRANSCODER_TEMPLATE_ID", "preset/web-hd")
 
 	viper.AddConfigPath(path)
 	viper.SetConfigName("config")

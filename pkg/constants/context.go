@@ -21,3 +21,24 @@ const (
 	// OpenTelemetry trace IDs) for request logging and error responses.
 	CtxTraceIDKey CtxKey = "trace_id"
 )
+
+// Instrumentation name used when creating OTel tracers. A single constant
+// ensures every span produced by this service is grouped under the same
+// instrumentation scope in the telemetry backend.
+const InstrumentationName = "github.com/AmithSAI007/prj-apex-transcode-submitter"
+
+// Standard log field keys used across all layers to ensure consistency
+// in structured log output destined for BigQuery via GCP log sink.
+const (
+	LogKeyTraceID  = "trace_id"
+	LogKeySpanID   = "span_id"
+	LogKeyVideoID  = "video_id"
+	LogKeyUserID   = "user_id"
+	LogKeyBucket   = "bucket"
+	LogKeyObject   = "object"
+	LogKeyJobName  = "job_name"
+	LogKeyStatus   = "status"
+	LogKeyDuration = "duration_ms"
+	LogKeyLayer    = "layer"
+	LogKeyMethod   = "method"
+)

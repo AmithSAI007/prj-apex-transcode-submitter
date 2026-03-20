@@ -25,9 +25,7 @@ type HandlerRegistry struct {
 func SetupRoutes(router *gin.Engine, handlers *HandlerRegistry) {
 	v1 := router.Group("/api/v1")
 
-	v1.GET("/healthz", func(ctx *gin.Context) {
-		ctx.JSON(200, gin.H{"status": "ok"})
-	})
+	v1.GET("/healthz", handler.HealthCheck)
 
 	v1.POST("/", handlers.EventHandler.HandleTranscodeTask)
 
