@@ -82,11 +82,6 @@ variable "otel_resource_attributes" {
   type        = string
 }
 
-variable "service_account_name" {
-  description = "The name of the service account to be used by the Cloud Run service."
-  type        = string
-}
-
 variable "otel_exporter_otlp_headers" {
   description = "A comma-separated list of key=value pairs to be included as headers in OpenTelemetry OTLP exporter requests."
   type        = string
