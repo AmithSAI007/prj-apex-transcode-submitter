@@ -210,15 +210,38 @@ jobs:
           sbom: true
 
       - name: Create Terraform Config
+        env:
+          CONTAINER_IMAGE: "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.short_sha }}"
+          SERVICE_ACCOUNT_NAME: "${{ secrets.GCP_SERVICE_ACCOUNT }}"
+          OTEL_HEADERS: "${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}"
+          OTEL_ENDPOINT: "${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}"
+          OTEL_RESOURCE_ATTRS: "${{ vars.OTEL_RESOURCE_ATTRIBUTES }}"
+          FIRESTORE_DATABASE_ID: "${{ vars.FIRESTORE_DATABASE_ID }}"
+          MIN_FILE_SIZE_BYTES: "${{ vars.MIN_FILE_SIZE_BYTES }}"
+          MAX_FILE_SIZE_BYTES: "${{ vars.MAX_FILE_SIZE_BYTES }}"
+          ALLOWED_CONTENT_TYPES: "${{ vars.ALLOWED_CONTENT_TYPES }}"
         run: |
-
-          # container image should be image:sha
-          cat <<EOF > deploy.tfvars.json
-          {
-            "container_image": "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.short_sha }}",
-            "service_account_name": "${{ secrets.GCP_SERVICE_ACCOUNT }}"
-          }
-          EOF
+          jq -n \
+            --arg ci "$CONTAINER_IMAGE" \
+            --arg sa "$SERVICE_ACCOUNT_NAME" \
+            --arg oh "$OTEL_HEADERS" \
+            --arg oe "$OTEL_ENDPOINT" \
+            --arg or "$OTEL_RESOURCE_ATTRS" \
+            --arg fd "$FIRESTORE_DATABASE_ID" \
+            --arg mfsb "$MIN_FILE_SIZE_BYTES" \
+            --arg mfxb "$MAX_FILE_SIZE_BYTES" \
+            --arg act "$ALLOWED_CONTENT_TYPES" \
+            '{
+              container_image: $ci,
+              service_account_name: $sa,
+              otel_exporter_otlp_headers: $oh,
+              otel_exporter_otlp_endpoint: $oe,
+              otel_resource_attributes: $or,
+              firestore_database_id: $fd,
+              min_file_size_bytes: ($mfsb | tonumber),
+              max_file_size_bytes: ($mfxb | tonumber),
+              allowed_content_types: $act
+            }' > deploy.tfvars.json
 
       - name: Upload Config
         uses: actions/upload-artifact@v4

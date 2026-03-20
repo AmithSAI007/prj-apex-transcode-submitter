@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/AmithSAI007/prj-apex-transcode-submitter/api/dto"
+	"github.com/AmithSAI007/prj-apex-transcode-submitter/pkg/constants"
 	"github.com/AmithSAI007/prj-apex-transcode-submitter/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -24,8 +25,14 @@ func ErrorHandler(logger *zap.Logger) gin.HandlerFunc {
 		// Deferred panic recovery: catches panics and returns a 500 error.
 		defer func() {
 			if r := recover(); r != nil {
-				traceID := utils.TraceIDFromContext(c.Request.Context())
-				logger.Error("Recovered from panic", zap.Any("error", r), zap.String("trace_id", traceID))
+				ctx := c.Request.Context()
+				traceID := utils.TraceIDFromContext(ctx)
+				fields := append(utils.LogFieldsFromContext(ctx),
+					zap.String(constants.LogKeyLayer, "middleware"),
+					zap.String(constants.LogKeyMethod, "ErrorHandler"),
+					zap.Any("panic", r),
+				)
+				logger.Error("recovered from panic", fields...)
 				c.AbortWithStatusJSON(
 					http.StatusInternalServerError,
 					dto.ErrorResponse{
@@ -44,9 +51,16 @@ func ErrorHandler(logger *zap.Logger) gin.HandlerFunc {
 		// After the handler chain: check for any Gin context errors that
 		// were not explicitly handled by the endpoint handler.
 		if len(c.Errors) > 0 {
-			traceID := utils.TraceIDFromContext(c.Request.Context())
+			ctx := c.Request.Context()
+			traceID := utils.TraceIDFromContext(ctx)
+			fields := append(utils.LogFieldsFromContext(ctx),
+				zap.String(constants.LogKeyLayer, "middleware"),
+				zap.String(constants.LogKeyMethod, "ErrorHandler"),
+			)
 			for _, e := range c.Errors {
-				logger.Error("Request error", zap.Error(e.Err), zap.String("trace_id", traceID))
+				logger.Error("unhandled request error",
+					append(fields, zap.Error(e.Err))...,
+				)
 			}
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				Error: dto.ErrorPayload{

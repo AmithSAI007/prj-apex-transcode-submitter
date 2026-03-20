@@ -1,4 +1,4 @@
-// Package trace provides application-level trace ID generation and context
+// Package utils provides application-level trace ID generation and context
 // propagation utilities. These trace IDs are separate from OpenTelemetry's
 // distributed trace IDs and serve as human-readable correlation identifiers
 // in logs and API error responses.
@@ -10,7 +10,17 @@ import (
 	"encoding/hex"
 
 	"github.com/AmithSAI007/prj-apex-transcode-submitter/pkg/constants"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
+
+// Tracer returns a named OTel tracer scoped to this application's
+// instrumentation name. All spans created via this tracer are grouped
+// under the same instrumentation scope in Cloud Trace.
+func Tracer() trace.Tracer {
+	return otel.Tracer(constants.InstrumentationName)
+}
 
 // GenerateTraceID returns a cryptographically-random 16-character hex string
 // suitable for use as a request correlation ID. Falls back to a zero-filled
@@ -41,6 +51,32 @@ func TraceIDFromContext(ctx context.Context) string {
 		}
 	}
 	return ""
+}
+
+// OTelTraceIDFromContext extracts the OpenTelemetry trace ID and span ID from
+// the context's current span. Returns empty strings if no active span exists.
+func OTelTraceIDFromContext(ctx context.Context) (traceID, spanID string) {
+	sc := trace.SpanContextFromContext(ctx)
+	if sc.IsValid() {
+		return sc.TraceID().String(), sc.SpanID().String()
+	}
+	return "", ""
+}
+
+// LogFieldsFromContext returns common zap fields extracted from the context
+// for consistent structured logging across all layers. Includes the app-level
+// trace ID, OTel trace ID, and OTel span ID.
+func LogFieldsFromContext(ctx context.Context) []zap.Field {
+	fields := make([]zap.Field, 0, 3)
+	if appTraceID := TraceIDFromContext(ctx); appTraceID != "" {
+		fields = append(fields, zap.String(constants.LogKeyTraceID, appTraceID))
+	}
+	otelTraceID, otelSpanID := OTelTraceIDFromContext(ctx)
+	if otelTraceID != "" {
+		fields = append(fields, zap.String("otel_trace_id", otelTraceID))
+		fields = append(fields, zap.String(constants.LogKeySpanID, otelSpanID))
+	}
+	return fields
 }
 
 // DataFromContext is a generic helper that extracts a string value from the

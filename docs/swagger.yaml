@@ -1,9 +1,216 @@
 basePath: /api/v1
+definitions:
+  dto.ErrorCode:
+    enum:
+    - invalid_request
+    - internal
+    type: string
+    x-enum-varnames:
+    - ErrorCodeInvalidRequest
+    - ErrorCodeInternal
+  dto.ErrorDetail:
+    properties:
+      field:
+        description: Field is the request field that caused the error (omitted when
+          not field-specific).
+        example: videoId
+        type: string
+      message:
+        description: Message is a human-readable description of the validation error.
+        example: videoId is required
+        type: string
+    type: object
+  dto.ErrorPayload:
+    properties:
+      code:
+        allOf:
+        - $ref: '#/definitions/dto.ErrorCode'
+        description: Code is the machine-readable error classification.
+        enum:
+        - invalid_request
+        - internal
+        example: invalid_request
+      details:
+        description: Details contains field-level error information when applicable.
+        items:
+          $ref: '#/definitions/dto.ErrorDetail'
+        type: array
+      message:
+        description: Message is a human-readable summary of the error suitable for
+          display.
+        example: Validation failed
+        type: string
+      requestId:
+        description: RequestID is the correlation ID for tracing this request across
+          logs and observability tools.
+        example: a1b2c3d4e5f67890
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        allOf:
+        - $ref: '#/definitions/dto.ErrorPayload'
+        description: Error contains the structured error payload.
+    type: object
+  dto.HealthResponse:
+    properties:
+      status:
+        description: Status indicates the service health. Always "ok" when the service
+          is running.
+        example: ok
+        type: string
+    type: object
+  dto.TranscodeRequest:
+    properties:
+      contentType:
+        description: ContentType is the MIME type of the raw media file (e.g. video/mp4,
+          video/mkv).
+        example: video/mp4
+        type: string
+      eventId:
+        description: EventID is the Cloud Tasks event identifier for deduplication
+          and tracing.
+        example: evt_a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        type: string
+      fileSize:
+        description: FileSize is the expected size of the raw media file in bytes,
+          used for integrity verification against GCS metadata.
+        example: 104857600
+        type: integer
+      rawFilePath:
+        description: RawFilePath is the fully-qualified GCS URI of the raw media file
+          (gs://bucket/path/to/file).
+        example: gs://apex-raw-uploads/6ba7b810-9dad-11d1-80b4-00c04fd430c8/550e8400-e29b-41d4-a716-446655440000/video.mp4
+        type: string
+      traceId:
+        description: TraceID is a client-supplied correlation identifier propagated
+          through logs and downstream services.
+        example: trace_7f3a9c2b1d4e8f0a
+        type: string
+      userId:
+        description: UserID is the UUID of the owning user. Must be a valid UUIDv4.
+        example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        type: string
+      videoId:
+        description: VideoID is the UUID of the video resource in Firestore. Must
+          be a valid UUIDv4.
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - contentType
+    - eventId
+    - fileSize
+    - rawFilePath
+    - traceId
+    - userId
+    - videoId
+    type: object
+  dto.TranscodeResponse:
+    properties:
+      message:
+        description: Message is a human-readable confirmation that the task was accepted.
+        example: Transcode task received successfully
+        type: string
+    type: object
+externalDocs:
+  description: Apex Platform Architecture
+  url: https://docs.apex.dev/architecture/transcode-submitter
 host: localhost:8080
 info:
-  contact: {}
-  description: API for submitting transcode tasks
+  contact:
+    email: platform-eng@apex.dev
+    name: Apex Platform Engineering
+  description: |-
+    Internal API consumed by Google Cloud Tasks to submit video transcoding jobs.
+    This service validates incoming task payloads, verifies raw media files in GCS,
+    checks idempotency via Firestore document state, and submits transcoding jobs
+    to the Google Cloud Transcoder API.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
   title: Transcode Submitter API
   version: "1.0"
-paths: {}
+paths:
+  /:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Receives a transcode task payload from Google Cloud Tasks, validates the
+        Cloud Tasks headers and JSON body, verifies the raw media file exists in GCS,
+        checks the Firestore document state for idempotency, and submits a transcoding
+        job to the Google Cloud Transcoder API. On success the Firestore document is
+        transitioned from "queued" to "transcoding".
+
+        **HTTP status code semantics (Cloud Tasks retry behaviour):**
+        - **200** — Task processed successfully, or duplicate detected (idempotent). Cloud Tasks will not retry.
+        - **400** — Permanent failure (bad payload, missing headers, invalid state). Cloud Tasks will not retry.
+        - **500** — Transient failure (infrastructure error). Cloud Tasks will retry with exponential back-off.
+      operationId: submitTranscodeTask
+      parameters:
+      - description: Cloud Tasks task name
+        example: projects/my-project/locations/us-central1/queues/transcode-tasks/tasks/task-123
+        in: header
+        name: X-CloudTasks-TaskName
+        required: true
+        type: string
+      - description: Cloud Tasks queue name
+        example: transcode-tasks
+        in: header
+        name: X-CloudTasks-QueueName
+        required: true
+        type: string
+      - description: Cloud Tasks retry count
+        example: 0
+        in: header
+        name: X-CloudTasks-RetryCount
+        type: integer
+      - description: Transcode task payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TranscodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task accepted or duplicate acknowledged
+          schema:
+            $ref: '#/definitions/dto.TranscodeResponse'
+        "400":
+          description: Permanent error — invalid headers, malformed body, or domain
+            validation failure
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Transient error — infrastructure failure, retry is expected
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Submit a video transcoding task
+      tags:
+      - transcode
+  /healthz:
+    get:
+      description: |-
+        Returns the current health status of the service. Used by load balancers,
+        Cloud Run readiness probes, and monitoring systems to verify the service
+        is running and able to accept traffic.
+      operationId: healthCheck
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+      summary: Service health check
+      tags:
+      - operations
+schemes:
+- https
+- http
 swagger: "2.0"
+x-google-backend:
+  address: https://transcode-submitter-HASH-uc.a.run.app

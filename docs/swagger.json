@@ -1,12 +1,267 @@
 {
+    "schemes": [
+        "https",
+        "http"
+    ],
     "swagger": "2.0",
     "info": {
-        "description": "API for submitting transcode tasks",
+        "description": "Internal API consumed by Google Cloud Tasks to submit video transcoding jobs.\nThis service validates incoming task payloads, verifies raw media files in GCS,\nchecks idempotency via Firestore document state, and submits transcoding jobs\nto the Google Cloud Transcoder API.",
         "title": "Transcode Submitter API",
-        "contact": {},
+        "contact": {
+            "name": "Apex Platform Engineering",
+            "email": "platform-eng@apex.dev"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+        },
         "version": "1.0"
     },
     "host": "localhost:8080",
     "basePath": "/api/v1",
-    "paths": {}
+    "paths": {
+        "/": {
+            "post": {
+                "description": "Receives a transcode task payload from Google Cloud Tasks, validates the\nCloud Tasks headers and JSON body, verifies the raw media file exists in GCS,\nchecks the Firestore document state for idempotency, and submits a transcoding\njob to the Google Cloud Transcoder API. On success the Firestore document is\ntransitioned from \"queued\" to \"transcoding\".\n\n**HTTP status code semantics (Cloud Tasks retry behaviour):**\n- **200** — Task processed successfully, or duplicate detected (idempotent). Cloud Tasks will not retry.\n- **400** — Permanent failure (bad payload, missing headers, invalid state). Cloud Tasks will not retry.\n- **500** — Transient failure (infrastructure error). Cloud Tasks will retry with exponential back-off.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transcode"
+                ],
+                "summary": "Submit a video transcoding task",
+                "operationId": "submitTranscodeTask",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "projects/my-project/locations/us-central1/queues/transcode-tasks/tasks/task-123",
+                        "description": "Cloud Tasks task name",
+                        "name": "X-CloudTasks-TaskName",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "transcode-tasks",
+                        "description": "Cloud Tasks queue name",
+                        "name": "X-CloudTasks-QueueName",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "example": 0,
+                        "description": "Cloud Tasks retry count",
+                        "name": "X-CloudTasks-RetryCount",
+                        "in": "header"
+                    },
+                    {
+                        "description": "Transcode task payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TranscodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task accepted or duplicate acknowledged",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TranscodeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Permanent error — invalid headers, malformed body, or domain validation failure",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Transient error — infrastructure failure, retry is expected",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/healthz": {
+            "get": {
+                "description": "Returns the current health status of the service. Used by load balancers,\nCloud Run readiness probes, and monitoring systems to verify the service\nis running and able to accept traffic.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operations"
+                ],
+                "summary": "Service health check",
+                "operationId": "healthCheck",
+                "responses": {
+                    "200": {
+                        "description": "Service is healthy",
+                        "schema": {
+                            "$ref": "#/definitions/dto.HealthResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.ErrorCode": {
+            "type": "string",
+            "enum": [
+                "invalid_request",
+                "internal"
+            ],
+            "x-enum-varnames": [
+                "ErrorCodeInvalidRequest",
+                "ErrorCodeInternal"
+            ]
+        },
+        "dto.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "description": "Field is the request field that caused the error (omitted when not field-specific).",
+                    "type": "string",
+                    "example": "videoId"
+                },
+                "message": {
+                    "description": "Message is a human-readable description of the validation error.",
+                    "type": "string",
+                    "example": "videoId is required"
+                }
+            }
+        },
+        "dto.ErrorPayload": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code is the machine-readable error classification.",
+                    "enum": [
+                        "invalid_request",
+                        "internal"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ErrorCode"
+                        }
+                    ],
+                    "example": "invalid_request"
+                },
+                "details": {
+                    "description": "Details contains field-level error information when applicable.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ErrorDetail"
+                    }
+                },
+                "message": {
+                    "description": "Message is a human-readable summary of the error suitable for display.",
+                    "type": "string",
+                    "example": "Validation failed"
+                },
+                "requestId": {
+                    "description": "RequestID is the correlation ID for tracing this request across logs and observability tools.",
+                    "type": "string",
+                    "example": "a1b2c3d4e5f67890"
+                }
+            }
+        },
+        "dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error contains the structured error payload.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.ErrorPayload"
+                        }
+                    ]
+                }
+            }
+        },
+        "dto.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "description": "Status indicates the service health. Always \"ok\" when the service is running.",
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "dto.TranscodeRequest": {
+            "type": "object",
+            "required": [
+                "contentType",
+                "eventId",
+                "fileSize",
+                "rawFilePath",
+                "traceId",
+                "userId",
+                "videoId"
+            ],
+            "properties": {
+                "contentType": {
+                    "description": "ContentType is the MIME type of the raw media file (e.g. video/mp4, video/mkv).",
+                    "type": "string",
+                    "example": "video/mp4"
+                },
+                "eventId": {
+                    "description": "EventID is the Cloud Tasks event identifier for deduplication and tracing.",
+                    "type": "string",
+                    "example": "evt_a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                },
+                "fileSize": {
+                    "description": "FileSize is the expected size of the raw media file in bytes, used for integrity verification against GCS metadata.",
+                    "type": "integer",
+                    "example": 104857600
+                },
+                "rawFilePath": {
+                    "description": "RawFilePath is the fully-qualified GCS URI of the raw media file (gs://bucket/path/to/file).",
+                    "type": "string",
+                    "example": "gs://apex-raw-uploads/6ba7b810-9dad-11d1-80b4-00c04fd430c8/550e8400-e29b-41d4-a716-446655440000/video.mp4"
+                },
+                "traceId": {
+                    "description": "TraceID is a client-supplied correlation identifier propagated through logs and downstream services.",
+                    "type": "string",
+                    "example": "trace_7f3a9c2b1d4e8f0a"
+                },
+                "userId": {
+                    "description": "UserID is the UUID of the owning user. Must be a valid UUIDv4.",
+                    "type": "string",
+                    "example": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                },
+                "videoId": {
+                    "description": "VideoID is the UUID of the video resource in Firestore. Must be a valid UUIDv4.",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "dto.TranscodeResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message is a human-readable confirmation that the task was accepted.",
+                    "type": "string",
+                    "example": "Transcode task received successfully"
+                }
+            }
+        }
+    },
+    "externalDocs": {
+        "description": "Apex Platform Architecture",
+        "url": "https://docs.apex.dev/architecture/transcode-submitter"
+    },
+    "x-google-backend": {
+        "address": "https://transcode-submitter-HASH-uc.a.run.app"
+    }
 }
