@@ -86,3 +86,13 @@ variable "otel_exporter_otlp_headers" {
   description = "A comma-separated list of key=value pairs to be included as headers in OpenTelemetry OTLP exporter requests."
   type        = string
 }
+
+variable "transcode_task_queue" {
+  description = "The name of the Pub/Sub topic used as the task queue for transcoding jobs."
+  type        = string
+}
+
+variable "transcode_template_id" {
+  description = "The ID of the Transcoder API job template to use for transcoding tasks."
+  type        = string
+}
