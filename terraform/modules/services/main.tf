@@ -55,7 +55,7 @@ resource "google_cloud_run_v2_service" "apex_ingestion_service" {
         value = var.otel_exporter_otlp_endpoint
       }
       env {
-        name  = "OTEL_EXPORTER_OLTP_HEADERS"
+        name  = "OTEL_EXPORTER_OTLP_HEADERS"
         value = var.otel_exporter_otlp_headers
       }
       env {
@@ -79,7 +79,7 @@ resource "google_cloud_run_v2_service" "apex_ingestion_service" {
         value = var.firestore_collection
       }
       env {
-        name  = "TRANSCODE_TEMPLATE_ID"
+        name  = "TRANSCODER_TEMPLATE_ID"
         value = var.transcode_template_id
       }
       env {
