@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// Initialize the structured logger (JSON in production, console in development).
-	logger, err := config.NewLogger()
+	logger, err := config.NewLogger(cfg.AppEnv)
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}

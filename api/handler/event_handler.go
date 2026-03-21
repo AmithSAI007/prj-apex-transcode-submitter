@@ -77,11 +77,13 @@ func (h *EventHandler) HandleTranscodeTask(c *gin.Context) {
 
 	h.logger.Debug("received transcode task request", logFields...)
 
-	headerMap := make(map[string]string)
-	for key, values := range c.Request.Header {
-		if len(values) > 0 {
-			headerMap[key] = values[0]
-		}
+	// Use c.GetHeader for case-insensitive lookup. Go's net/http canonicalises
+	// header keys (e.g. "X-CloudTasks-TaskName" becomes "X-Cloudtasks-Taskname"),
+	// so a direct map key comparison against the original mixed-case names fails.
+	headerMap := map[string]string{
+		validation.XCloudTasksTaskNameHeader:   c.GetHeader(validation.XCloudTasksTaskNameHeader),
+		validation.XCloudTasksQueueNameHeader:  c.GetHeader(validation.XCloudTasksQueueNameHeader),
+		validation.XCloudTasksRetryCountHeader: c.GetHeader(validation.XCloudTasksRetryCountHeader),
 	}
 
 	if err := validation.ValidateCloudTaskHeaders(headerMap, h.cfg.TranscodeTaskQueue); err != nil {

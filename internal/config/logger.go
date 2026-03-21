@@ -9,15 +9,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// NewLogger creates a configured zap.Logger based on the APP_ENV environment
-// variable. In "production" mode it outputs structured JSON to stdout and a
-// file. In all other modes it outputs colorized, human-readable console logs
-// at Info level and above.
-func NewLogger() (*zap.Logger, error) {
+// NewLogger creates a configured zap.Logger based on the given appEnv value.
+// When appEnv is "local" it outputs colorized, human-readable console logs at
+// Info level and above. In all other cases it outputs structured JSON to stdout
+// and a file for production use.
+func NewLogger(appEnv string) (*zap.Logger, error) {
 	var logger *zap.Logger
 	var err error
 
-	if os.Getenv("APP_ENV") != "local" {
+	if appEnv != "local" {
 		// Production: structured JSON format, writing to both stdout and app.log.
 		cfg := zap.NewProductionConfig()
 		cfg.OutputPaths = []string{"stdout", "app.log"}
